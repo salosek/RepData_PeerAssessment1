@@ -1,7 +1,7 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
 author: "Scott Loseke"
-date: "March 7, 2018"
+date: "March 8, 2018"
 output: 
   html_document:
     keep_md: true
@@ -202,7 +202,7 @@ dat2[c(9790:9799),]
 
 ```r
 dSumstep <- as.data.frame(dat2 %>% group_by(date) %>% summarize(sumSteps = sum(steps)))
-hist(dSumstep$sumSteps,  nclass=10, main="Frequency Number of Steps Taken per Day", xlab = "Total steps taken each day")
+hist(dSumstep$sumSteps,  nclass=10, main="Frequency Number of Steps Taken per Day, Missing data filled", xlab = "Total steps taken each day")
 ```
 
 ![](PA1_template_files/figure-html/unnamed-chunk-11-1.png)<!-- -->
