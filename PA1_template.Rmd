@@ -1,25 +1,97 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
+author: "Scott Loseke"
+date: "March 7, 2018"
 output: 
   html_document:
     keep_md: true
 ---
+#### load appropriate libraries
+```{r message=FALSE}
+library(dplyr)
+library(lattice)
+```
+##   Loading and preprocessing the data
+####  first we set the working directory
+```{r}
+setwd("C:/rProjects/repResearch/RepData_PeerAssessment1")
+```
 
+####  now read in the data
+```{r}
+dat1 <- read.csv("activity.csv")
+```
 
-## Loading and preprocessing the data
+#### clean up some formats and create some variables for future work 
+```{r}
+dat1$date <- as.Date(dat1$date, "%Y-%m-%d")
+dat1$wday <- weekdays(dat1$date)
+dat1$wdwe <- ifelse(dat1$wday %in% c("Saturday", "Sunday"), "weekend", "weekday")
+dat1$N <- seq(1, 17568, by=1)
+```
 
-
-
-## What is mean total number of steps taken per day?
-
-
+##  What is mean total number of steps taken per day?
+#### first calculate the total number of steps taken each day to the dataframe dSumstep
+#### create a histogram to show the distribution of steps taken each day
+#### the average total number of steps taken per day is 10,767, and the median is 10,765.   
+```{r}
+dSumstep <- as.data.frame(dat1 %>% group_by(date) %>% summarize(sumSteps = sum(steps)))
+hist(dSumstep$sumSteps,  nclass=10, main="Frequency Number of Steps Taken per Day", xlab = "Total steps taken each day")
+mean(dSumstep$sumSteps, na.rm = TRUE)
+median(dSumstep$sumSteps, na.rm = TRUE)
+summary(dSumstep$sumSteps, na.rm = TRUE)
+```
 
 ## What is the average daily activity pattern?
-
-
+#### there are 288 five minute intervals each day, looks like our individual is active in the
+#### morning taking the most steps, 206.2, on average at interval 835 
+```{r warning=FALSE}
+iAvgstep <- as.data.frame(dat1 %>% group_by(interval) %>% summarize(avgSteps = mean(steps, na.rm = TRUE)))
+plot(iAvgstep$interval, iAvgstep$avgSteps, type="l", main = "Average number of steps by time of day",
+      xlab = "Time of day, each five minute interval", ylab = "Average steps taken in interval each day")
+iAvgstep <- mutate(iAvgstep, cdist = dplyr::cume_dist(iAvgstep$avgSteps) )
+iAvgstep[iAvgstep$cdist == 1,]
+```
 
 ## Imputing missing values
-
-
+#### the total number of missing values in the dataset is 2,304 of 17,568 observations, or about 13%
+```{r}
+sum(is.na(dat1$steps))
+sum(is.na(dat1$steps))/length(dat1$steps)
+```
+#### to impute the missing values i'll use the average by weekday or weekend, and the interval to
+#### fill missing values, first compute the average by day type and interval
+```{r}
+iwAvgstep <- as.data.frame(dat1 %>% group_by(interval, wdwe) %>% summarize(avgSteps = mean(steps, na.rm = TRUE)))
+head(iwAvgstep)
+tail(iwAvgstep)
+```
+#### now join the average in each observation of the entire data set and find the missing values
+```{r}
+dat2 <- left_join(dat1, iwAvgstep, by = c("wdwe" = "wdwe", "interval" = "interval") )
+dat2$fill <- is.na(dat2$steps)
+```
+#### now overwrite only the missing values in column 1, the steps with column 7 the average steps
+#### and then check a few observations where data changed from missing to existing
+```{r}
+dat2[dat2$fill==TRUE, 1] <- dat2[dat2$fill==TRUE, 7]
+dat2[c(284:293),]
+dat2[c(9790:9799),]
+```
+#### the new average total number of steps taken per day changed slightly to  10,762, and the median is now 10,571.   
+```{r}
+dSumstep <- as.data.frame(dat2 %>% group_by(date) %>% summarize(sumSteps = sum(steps)))
+hist(dSumstep$sumSteps,  nclass=10, main="Frequency Number of Steps Taken per Day", xlab = "Total steps taken each day")
+mean(dSumstep$sumSteps, na.rm = TRUE)
+median(dSumstep$sumSteps, na.rm = TRUE)
+summary(dSumstep$sumSteps, na.rm = TRUE)
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+#### when imputing missing values we assumed there would be differences in activity level on the weekends
+#### now we'll check this out, we create a new data frame with the average steps by interval and day type
+#### our subject moves around less early, but does get more active in the middle of the day and later at night
+```{r}
+iwAvgstep <- as.data.frame(dat2 %>% group_by(interval, wdwe) %>% summarize(avgSteps = mean(steps, na.rm = TRUE)))
+xyplot(avgSteps ~ interval | wdwe, data=iwAvgstep, type="l", layout = c(1, 2), main="Yes, we see different activity level on Weekends")
+```
